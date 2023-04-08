@@ -32,8 +32,8 @@ public class QuestionnaireController {
 	}
 	
 	@PostMapping(value = "/api/getAllQuestionnaire")
-	public QuestionnaireRes getAllQuestionnaire(@RequestBody QuestionnaireReq req) {
-		return questionnaireService.getAllQuestionnaire(req);
+	public QuestionnaireRes getAllQuestionnaire() {
+		return questionnaireService.getAllQuestionnaire();
 	}
 	
 	@PostMapping(value = "/api/findQuestionnaire")

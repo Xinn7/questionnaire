@@ -9,6 +9,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class QuestionnaireRes {
+	
+	private int pageNum;
 
 	private String message;
 
@@ -44,7 +46,7 @@ public class QuestionnaireRes {
 		this.questionnaire = questionnaire;
 		this.message = message;
 	}
-
+	
 	public QuestionnaireRes(List<QuestionnaireRes> questionnaireResList, List<QuestionInfo> questionInfoList,
 			String message) {
 		this.questionnaireResList = questionnaireResList;
@@ -52,15 +54,32 @@ public class QuestionnaireRes {
 		this.message = message;
 	}
 
+	public QuestionnaireRes(List<QuestionnaireRes> questionnaireResList, List<QuestionInfo> questionInfoList,
+			String message, int pageNum) {
+		this.questionnaireResList = questionnaireResList;
+		this.questionInfoList = questionInfoList;
+		this.message = message;
+		this.pageNum = pageNum;
+	}
+
 	public QuestionnaireRes(Respondent respondent, String message) {
 		this.respondent = respondent;
 		this.message = message;
 	}
 
-	public QuestionnaireRes(Questionnaire questionnaire, List<QuestionnaireRes> questionnaireResList, String message) {
+	public QuestionnaireRes(Questionnaire questionnaire, String status, List<QuestionnaireRes> questionnaireResList, String message) {
 		this.questionnaire = questionnaire;
+		this.status = status;
 		this.questionnaireResList = questionnaireResList;
 		this.message = message;
+	}
+
+	public int getPageNum() {
+		return pageNum;
+	}
+
+	public void setPageNum(int pageNum) {
+		this.pageNum = pageNum;
 	}
 
 	public String getMessage() {

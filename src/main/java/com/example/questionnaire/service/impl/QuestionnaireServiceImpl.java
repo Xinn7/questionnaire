@@ -4,6 +4,7 @@ import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -103,9 +104,9 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 	}
 
 	@Override
-	public QuestionnaireRes getAllQuestionnaire(QuestionnaireReq req) {
+	public QuestionnaireRes getAllQuestionnaire() {
 		Page<Questionnaire> pageResult = questionnaireDao
-				.findAll(PageRequest.of(req.getPage(), 10, Sort.by("questionnaireId").descending()));
+				.findAll(PageRequest.of(0, 10, Sort.by("questionnaireId").descending()));
 
 		List<Questionnaire> allQuestionnaire = pageResult.getContent();
 
@@ -226,12 +227,17 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 			return new QuestionnaireRes(QuestionnaireRtnCode.QUESTIONNAIRE_LIST_IS_EMPTY.getMessage());
 		}
 		
+		// 依照建立順序由新排到舊(id是從1開始)
+		// reversed()為倒序
+		List<Questionnaire> questionnaireSortId = newQuestionnaireList.stream().sorted(Comparator.comparing
+				(Questionnaire::getQuestionnaireId).reversed()).collect(Collectors.toList());
+
 		// 顯示問卷資訊與問卷狀態
 		List<QuestionnaireRes> questionnaireResList = new ArrayList<>();
 
 		String str = "";
 
-		for (Questionnaire questionnaire : newQuestionnaireList) {
+		for (Questionnaire questionnaire : questionnaireSortId) {
 			QuestionnaireRes res = new QuestionnaireRes();
 			if (questionnaire.getStartTime().isAfter(LocalDate.now())) {
 				str = "尚未開始";
@@ -247,12 +253,14 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 
 			questionnaireResList.add(res);
 		}
-
-		// 限制每一頁2筆list
-		List<QuestionnaireRes> subList = questionnaireResList.stream()
-				.skip((req.getPage()) * 2).limit(2).collect(Collectors.toList());
 		
-		return new QuestionnaireRes(subList, null, QuestionnaireRtnCode.SUCCESSFUL.getMessage());
+		// 限制每一頁10筆list
+		List<QuestionnaireRes> subList = questionnaireResList.stream().skip((req.getPage()) * 10).limit(10)
+				.collect(Collectors.toList());
+
+		int pageNum = questionnaireResList.size();
+
+		return new QuestionnaireRes(subList, null, QuestionnaireRtnCode.SUCCESSFUL.getMessage(), pageNum);
 	}
 
 	@Override
@@ -265,6 +273,17 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 		}
 
 		Questionnaire questionnaire = questionnaireOp.get();
+		
+		String str = "";
+		
+		if (questionnaire.getStartTime().isAfter(LocalDate.now())) {
+			str = "尚未開始";
+		} else if (questionnaire.getEndTime().isAfter(LocalDate.now())
+				|| questionnaire.getEndTime().isEqual(LocalDate.now())) {
+			str = "投票中";
+		} else {
+			str = "已完結";
+		}
 
 		// 查詢問卷的題目
 		List<QuestionInfo> questionInfoList = questionInfoDao.findByQuestionnaireId(questionnaire.getQuestionnaireId());
@@ -293,22 +312,27 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 			res.setOpType(opType);
 			questionnaireResList.add(res);
 		}
-		return new QuestionnaireRes(questionnaire, questionnaireResList, QuestionnaireRtnCode.SUCCESSFUL.getMessage());
+		return new QuestionnaireRes(questionnaire, str, questionnaireResList, QuestionnaireRtnCode.SUCCESSFUL.getMessage());
 	}
 
 	@Override
 	public QuestionnaireRes respondent(RespondentReq req) {
 		// 基本資料填寫
 		if (!StringUtils.hasText(req.getName()) || !StringUtils.hasText(req.getPhone())
-				|| !StringUtils.hasText(req.getEmail()) || req.getAge() <= 0 || !StringUtils.hasText(req.getGender())) {
+				|| !StringUtils.hasText(req.getEmail()) || req.getAge() <= 0 || !req.getAnswer().containsKey("性別")) {
 			return new QuestionnaireRes(QuestionnaireRtnCode.REQUIRED.getMessage());
 		}
 
 		// 將map型態的回覆轉成字串
 		String ansString = req.getAnswer().toString().substring(1, req.getAnswer().toString().length() - 1);
 
+		// 性別為題目
+		List<String> gender = req.getAnswer().get("性別");
+
+		String genderStr = gender.toString().substring(1, gender.toString().length() - 1);
+
 		Respondent respondent = new Respondent(req.getQuestionnaireId(), LocalDateTime.now(), req.getName(),
-				req.getPhone(), req.getEmail(), req.getAge(), req.getGender(), ansString);
+				req.getPhone(), req.getEmail(), req.getAge(), genderStr, ansString);
 
 		respondentDao.save(respondent);
 
@@ -316,11 +340,11 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 		List<QuestionInfo> QuestionInfoList = questionInfoDao.findByQuestionnaireId(respondent.getQuestionnaireId());
 
 		for (QuestionInfo questionInfo : QuestionInfoList) {
-			// 不儲存文字回復
-			if (!questionInfo.getOpType().equals("文字")) {
+			// 過濾沒有填寫的狀況
+			if (req.getAnswer().containsKey(questionInfo.getQuestion())) {
 
 				// 取得此答卷者這題題目的回答
-				List<String> ansList = req.getAnswer().get(questionInfo.getQuestionId());
+				List<String> ansList = req.getAnswer().get(questionInfo.getQuestion());
 
 				// 取得這題題目原先的回復數據
 				String oldOpData = questionInfo.getOpData();

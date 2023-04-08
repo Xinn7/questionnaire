@@ -13,7 +13,7 @@ public interface QuestionnaireService {
 
 	public QuestionnaireRes createQuestionInfo(List<QuestionnaireReq> reqList);
 
-	public QuestionnaireRes getAllQuestionnaire(QuestionnaireReq req);
+	public QuestionnaireRes getAllQuestionnaire();
 
 	public QuestionnaireRes findQuestionnaire(QuestionnaireReq req);
 
